@@ -12,8 +12,9 @@ const api = axios.create({
 const formatDateForMySQL = (dateString) => {
   try {
     if (!dateString) return format(new Date(), 'yyyy-MM-dd');
-    // Crear la fecha usando el string directamente sin parsearlo
-    return dateString;
+    // Asegurarse de que la fecha se maneje en la zona horaria local
+    const date = new Date(dateString + 'T00:00:00');
+    return format(date, 'yyyy-MM-dd');
   } catch (error) {
     console.error('Error formatting date:', error);
     return format(new Date(), 'yyyy-MM-dd');

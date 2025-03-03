@@ -73,7 +73,7 @@ function Pacientes() {
       setFormData({
         nombre: paciente.nombre || '',
         apellido: paciente.apellido || '',
-        fecha_nacimiento: paciente.fecha_nacimiento || format(new Date(), 'yyyy-MM-dd'),
+        fecha_nacimiento: paciente.fecha_nacimiento || '2002-02-10',
         email: paciente.email || '',
       });
     } else {
@@ -81,7 +81,7 @@ function Pacientes() {
       setFormData({
         nombre: '',
         apellido: '',
-        fecha_nacimiento: format(new Date(), 'yyyy-MM-dd'),
+        fecha_nacimiento: '2002-02-10',
         email: '',
       });
     }
@@ -114,6 +114,16 @@ function Pacientes() {
     try {
       if (!formData.fecha_nacimiento) {
         showSnackbar('La fecha de nacimiento es requerida', 'error');
+        return;
+      }
+
+      // Validar que la fecha de nacimiento esté dentro del rango permitido
+      const fechaNacimiento = new Date(formData.fecha_nacimiento);
+      const fechaMinima = new Date('1995-01-01');
+      const fechaMaxima = new Date();
+      
+      if (fechaNacimiento < fechaMinima || fechaNacimiento > fechaMaxima) {
+        showSnackbar('La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual', 'error');
         return;
       }
 
@@ -254,6 +264,11 @@ function Pacientes() {
               onChange={handleInputChange}
               InputLabelProps={{ shrink: true }}
               required
+              helperText="Fecha permitida: desde 1 de enero de 1995 hasta hoy"
+              inputProps={{
+                min: '1995-01-01',
+                max: format(new Date(), 'yyyy-MM-dd')
+              }}
             />
             <TextField
               fullWidth

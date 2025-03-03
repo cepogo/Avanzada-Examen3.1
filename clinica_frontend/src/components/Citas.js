@@ -27,8 +27,8 @@ import { format, parseISO, addDays } from 'date-fns';
 const formatDisplayDate = (dateString) => {
   try {
     if (!dateString) return '';
-    // Convertir la fecha del formato ISO a DD/MM/YYYY
-    const date = new Date(dateString);
+    // Crear una fecha usando el string y ajustando a la zona horaria local
+    const date = new Date(dateString + 'T00:00:00');
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -54,6 +54,27 @@ function Citas() {
     hora: '08:00',
     consultorio_id: '',
   });
+
+  const generateTimeOptions = () => {
+    const options = [];
+    let hour = 8;
+    let minutes = 0;
+
+    while (hour < 22 || (hour === 21 && minutes === 30)) {
+      const formattedHour = String(hour).padStart(2, '0');
+      const formattedMinutes = String(minutes).padStart(2, '0');
+      const time = `${formattedHour}:${formattedMinutes}`;
+      options.push(time);
+      
+      minutes += 30;
+      if (minutes === 60) {
+        minutes = 0;
+        hour += 1;
+      }
+    }
+
+    return options;
+  };
 
   const loadData = async () => {
     try {
@@ -162,6 +183,16 @@ function Citas() {
       }
       if (!formData.hora) {
         validationErrors.push('Debe seleccionar una hora');
+      }
+
+      // Validar que la fecha no sea anterior a la fecha actual
+      const fechaCita = new Date(formData.fecha);
+      fechaCita.setHours(0, 0, 0, 0);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      if (fechaCita < hoy) {
+        validationErrors.push('La fecha de la cita no puede ser anterior a la fecha actual');
       }
 
       if (validationErrors.length > 0) {
@@ -358,24 +389,27 @@ function Citas() {
               onChange={handleInputChange}
               InputLabelProps={{ shrink: true }}
               required
+              helperText="Solo se permiten citas desde la fecha actual en adelante"
               inputProps={{
                 min: format(new Date(), 'yyyy-MM-dd'),
               }}
             />
             <TextField
+              select
               fullWidth
               margin="normal"
               label="Hora"
               name="hora"
-              type="time"
               value={formData.hora}
               onChange={handleInputChange}
-              InputLabelProps={{ shrink: true }}
               required
-              inputProps={{
-                step: 1800, // 30 minutos
-              }}
-            />
+            >
+              {generateTimeOptions().map((time) => (
+                <MenuItem key={time} value={time}>
+                  {time}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               select
               fullWidth

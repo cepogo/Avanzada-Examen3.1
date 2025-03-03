@@ -63,6 +63,21 @@ public class PacientesService {
             if (pacientesDTO.getFechaNacimiento() == null) {
                 throw new InsertException("La fecha de nacimiento es requerida", PacientesEntity.class.getName());
             }
+
+            // Validar que la fecha de nacimiento esté dentro del rango permitido
+            java.util.Calendar calMin = java.util.Calendar.getInstance();
+            calMin.set(1995, 0, 1); // 1995-01-01
+            java.util.Date fechaMinima = calMin.getTime();
+
+            java.util.Calendar calMax = java.util.Calendar.getInstance();
+            java.util.Date fechaMaxima = calMax.getTime();
+
+            if (pacientesDTO.getFechaNacimiento().before(fechaMinima) || 
+                pacientesDTO.getFechaNacimiento().after(fechaMaxima)) {
+                throw new InsertException("La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual", 
+                    PacientesEntity.class.getName());
+            }
+
             PacientesEntity entity = mapDTOToEntity(pacientesDTO);
             this.pacientesRepository.save(entity);
         } catch (Exception exception) {
@@ -79,6 +94,22 @@ public class PacientesService {
             Optional<PacientesEntity> optionalEntity = this.pacientesRepository.findById(pacientesDTO.getId());
             if (optionalEntity.isEmpty()) {
                 throw new UpdateException("Paciente no encontrado", PacientesEntity.class.getName());
+            }
+
+            // Validar que la fecha de nacimiento esté dentro del rango permitido si se está actualizando
+            if (pacientesDTO.getFechaNacimiento() != null) {
+                java.util.Calendar calMin = java.util.Calendar.getInstance();
+                calMin.set(1995, 0, 1); // 1995-01-01
+                java.util.Date fechaMinima = calMin.getTime();
+
+                java.util.Calendar calMax = java.util.Calendar.getInstance();
+                java.util.Date fechaMaxima = calMax.getTime();
+
+                if (pacientesDTO.getFechaNacimiento().before(fechaMinima) || 
+                    pacientesDTO.getFechaNacimiento().after(fechaMaxima)) {
+                    throw new UpdateException("La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual", 
+                        PacientesEntity.class.getName());
+                }
             }
 
             PacientesEntity entity = optionalEntity.get();
