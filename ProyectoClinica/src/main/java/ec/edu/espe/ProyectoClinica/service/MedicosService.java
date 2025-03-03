@@ -39,80 +39,105 @@ public class MedicosService {
             }
 
             return medicosDTOs;
-        }catch (Exception exception){
-            this.msgError = this.msgError == null ? "No se encontro medicos": this.msgError;
-            throw new DocumentNotFoundException(this.msgError, MedicosEntity.class.getName());
+        } catch (Exception exception) {
+            throw new DocumentNotFoundException("No hay médicos registrados", "Médicos");
         }
     }
 
-    public void create (MedicoDTO medicoDTO) throws InsertException {
+    public void create(MedicoDTO medicoDTO) throws InsertException {
         try {
-            MedicosEntity medicoToCreate = new MedicosEntity();
-            medicoToCreate.setMedicoNombre(medicoDTO.getNombre());
-            medicoToCreate.setMedicoApellido(medicoDTO.getApellido());
-            medicoToCreate.setMedicoEspecialidad(medicoDTO.getEspecialidad());
+            // Validar campos requeridos
+            if (medicoDTO.getNombre() == null || medicoDTO.getNombre().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar el nombre del médico", "Médicos");
+            }
+            if (medicoDTO.getApellido() == null || medicoDTO.getApellido().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar el apellido del médico", "Médicos");
+            }
+            if (medicoDTO.getEspecialidad() == null || medicoDTO.getEspecialidad().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar la especialidad del médico", "Médicos");
+            }
 
-            this.medicosRepository.save(medicoToCreate);
-        }catch (Exception exception){
-            this.msgError = this.msgError == null ? "Error al crear medico": this.msgError;
-            throw new InsertException(this.msgError, MedicosEntity.class.getName());
+            // Validar duplicados de nombre y apellido
+            if (medicosRepository.existsByMedicoNombreAndMedicoApellido(
+                    medicoDTO.getNombre(), medicoDTO.getApellido())) {
+                throw new InsertException(
+                    "No se puede registrar el médico. " + medicoDTO.getNombre() + " " + 
+                    medicoDTO.getApellido() + " ya está registrado en el sistema",
+                    "Médicos");
+            }
+
+            MedicosEntity entity = new MedicosEntity();
+            entity.setMedicoNombre(medicoDTO.getNombre());
+            entity.setMedicoApellido(medicoDTO.getApellido());
+            entity.setMedicoEspecialidad(medicoDTO.getEspecialidad());
+
+            this.medicosRepository.save(entity);
+        } catch (InsertException e) {
+            throw e;
+        } catch (Exception exception) {
+            throw new InsertException("No se pudo registrar el médico", "Médicos");
         }
     }
 
-    public void update (Integer id, MedicoDTO medicoDTO) throws UpdateException {
+    public void update(Integer id, MedicoDTO medicoDTO) throws UpdateException {
         try {
             if (id == null) {
-                throw new UpdateException("El ID del médico es requerido", MedicosEntity.class.getName());
+                throw new UpdateException("Debe especificar el ID del médico a actualizar", "Médicos");
             }
 
-            Optional<MedicosEntity> medicosEntityOptional = this.medicosRepository.findById(id);
-            if (!medicosEntityOptional.isPresent()) {
-                throw new UpdateException("Médico no encontrado", MedicosEntity.class.getName());
+            Optional<MedicosEntity> optionalEntity = this.medicosRepository.findById(id);
+            if (optionalEntity.isEmpty()) {
+                throw new UpdateException("No existe un médico con el ID especificado", "Médicos");
             }
 
-            MedicosEntity medicoToUpdate = medicosEntityOptional.get();
-            
-            // Validar que al menos un campo sea proporcionado
-            if (medicoDTO.getNombre() == null && medicoDTO.getApellido() == null && medicoDTO.getEspecialidad() == null) {
-                throw new UpdateException("Debe proporcionar al menos un campo para actualizar", MedicosEntity.class.getName());
+            MedicosEntity existingMedico = optionalEntity.get();
+
+            // Validar duplicados de nombre y apellido solo si son diferentes a los actuales
+            if ((medicoDTO.getNombre() != null && !existingMedico.getMedicoNombre().equals(medicoDTO.getNombre())) ||
+                (medicoDTO.getApellido() != null && !existingMedico.getMedicoApellido().equals(medicoDTO.getApellido()))) {
+                if (medicosRepository.existsByMedicoNombreAndMedicoApellido(
+                        medicoDTO.getNombre() != null ? medicoDTO.getNombre() : existingMedico.getMedicoNombre(),
+                        medicoDTO.getApellido() != null ? medicoDTO.getApellido() : existingMedico.getMedicoApellido())) {
+                    throw new UpdateException(
+                        "No se puede actualizar el médico. " + 
+                        (medicoDTO.getNombre() != null ? medicoDTO.getNombre() : existingMedico.getMedicoNombre()) + " " +
+                        (medicoDTO.getApellido() != null ? medicoDTO.getApellido() : existingMedico.getMedicoApellido()) + 
+                        " ya está registrado en el sistema",
+                        "Médicos");
+                }
             }
 
-            // Actualizar solo los campos que no son nulos
-            if (medicoDTO.getNombre() != null) {
-                medicoToUpdate.setMedicoNombre(medicoDTO.getNombre());
-            }
-            if (medicoDTO.getApellido() != null) {
-                medicoToUpdate.setMedicoApellido(medicoDTO.getApellido());
-            }
-            if (medicoDTO.getEspecialidad() != null) {
-                medicoToUpdate.setMedicoEspecialidad(medicoDTO.getEspecialidad());
-            }
+            if (medicoDTO.getNombre() != null) existingMedico.setMedicoNombre(medicoDTO.getNombre());
+            if (medicoDTO.getApellido() != null) existingMedico.setMedicoApellido(medicoDTO.getApellido());
+            if (medicoDTO.getEspecialidad() != null) existingMedico.setMedicoEspecialidad(medicoDTO.getEspecialidad());
 
-            this.medicosRepository.save(medicoToUpdate);
-        } catch (UpdateException ue) {
-            throw ue;
+            this.medicosRepository.save(existingMedico);
+        } catch (UpdateException e) {
+            throw e;
         } catch (Exception exception) {
-            throw new UpdateException("Error al actualizar médico: " + exception.getMessage(), MedicosEntity.class.getName());
+            throw new UpdateException("No se pudo actualizar el médico", "Médicos");
         }
     }
 
-    public void delete (Integer id) throws DeleteException {
+    public void delete(Integer id) throws DeleteException {
         try {
             Optional<MedicosEntity> medicosEntityOptional = this.medicosRepository.findById(id);
             if (!medicosEntityOptional.isPresent()) {
-                throw new DeleteException("Médico no encontrado", MedicosEntity.class.getName());
+                throw new DeleteException("No existe un médico con el ID especificado", "Médicos");
             }
 
             MedicosEntity medico = medicosEntityOptional.get();
             if (medico.getCitas() != null && !medico.getCitas().isEmpty()) {
-                throw new DeleteException("No se puede eliminar el médico porque tiene citas asociadas", MedicosEntity.class.getName());
+                throw new DeleteException(
+                    "No se puede eliminar el médico porque tiene citas pendientes. Primero debe cancelar las citas",
+                    "Médicos");
             }
 
             this.medicosRepository.delete(medico);
         } catch (DeleteException de) {
             throw de;
         } catch (Exception exception) {
-            throw new DeleteException("No se puede eliminar el médico porque tiene citas asociadas", MedicosEntity.class.getName());
+            throw new DeleteException("No se pudo eliminar el médico", "Médicos");
         }
     }
 }

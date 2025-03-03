@@ -40,40 +40,77 @@ public class ConsultoriosService {
 
             return consultoriosDTOs;
         } catch (Exception exception) {
-            throw new DocumentNotFoundException("No se encontraron consultorios", ConsultoriosEntity.class.getName());
+            throw new DocumentNotFoundException("No hay consultorios registrados", "Consultorios");
         }
     }
+
     public void create(ConsultoriosDTO consultoriosDTO) throws InsertException {
         try {
+            // Validar campos requeridos
+            if (consultoriosDTO.getNumero() == null || consultoriosDTO.getNumero().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar el número de consultorio", "Consultorios");
+            }
+            if (consultoriosDTO.getPiso() == null) {
+                throw new InsertException("Debe ingresar el piso del consultorio", "Consultorios");
+            }
+
+            // Validar que no exista un consultorio con el mismo número en el mismo piso
+            if (consultoriosRepository.existsByConsultorioNumeroAndConsultorioPiso(
+                    consultoriosDTO.getNumero(), consultoriosDTO.getPiso())) {
+                throw new InsertException(
+                    "No se puede registrar el consultorio. El consultorio " + consultoriosDTO.getNumero() + 
+                    " ya existe en el piso " + consultoriosDTO.getPiso(),
+                    "Consultorios");
+            }
+
             ConsultoriosEntity consultorioToCreate = new ConsultoriosEntity();
             consultorioToCreate.setConsultorioNumero(consultoriosDTO.getNumero());
             consultorioToCreate.setConsultorioPiso(consultoriosDTO.getPiso());
 
             this.consultoriosRepository.save(consultorioToCreate);
-        }catch (Exception exception){
-            this.msgError = this.msgError == null ? "Error al crear consultorio" : this.msgError;
-            throw new InsertException(this.msgError, ConsultoriosEntity.class.getName());
+        } catch (InsertException e) {
+            throw e;
+        } catch (Exception exception) {
+            throw new InsertException("No se pudo registrar el consultorio", "Consultorios");
         }
     }
 
     public void update(ConsultoriosDTO consultoriosDTO) throws UpdateException {
         try {
-            ConsultoriosEntity consultorioToUpdate = this.consultoriosRepository.findByConsultorioNumero(consultoriosDTO.getNumero());
-            if (consultorioToUpdate == null) {
-                throw new UpdateException("No se encontró el consultorio", ConsultoriosEntity.class.getName());
+            if (consultoriosDTO.getId() == null) {
+                throw new UpdateException("Debe especificar el ID del consultorio a actualizar", "Consultorios");
             }
 
-            // Actualizar solo los campos que no son nulos
-            if (consultoriosDTO.getNumero() != null) {
-                consultorioToUpdate.setConsultorioNumero(consultoriosDTO.getNumero());
-            }
-            if (consultoriosDTO.getPiso() != null) {
-                consultorioToUpdate.setConsultorioPiso(consultoriosDTO.getPiso());
+            Optional<ConsultoriosEntity> optionalEntity = this.consultoriosRepository.findById(consultoriosDTO.getId());
+            if (optionalEntity.isEmpty()) {
+                throw new UpdateException("No existe un consultorio con el ID especificado", "Consultorios");
             }
 
-            this.consultoriosRepository.save(consultorioToUpdate);
+            ConsultoriosEntity existingConsultorio = optionalEntity.get();
+
+            // Validar duplicados de número y piso solo si son diferentes a los actuales
+            if ((consultoriosDTO.getNumero() != null && !existingConsultorio.getConsultorioNumero().equals(consultoriosDTO.getNumero())) ||
+                (consultoriosDTO.getPiso() != null && !existingConsultorio.getConsultorioPiso().equals(consultoriosDTO.getPiso()))) {
+                if (consultoriosRepository.existsByConsultorioNumeroAndConsultorioPiso(
+                        consultoriosDTO.getNumero() != null ? consultoriosDTO.getNumero() : existingConsultorio.getConsultorioNumero(),
+                        consultoriosDTO.getPiso() != null ? consultoriosDTO.getPiso() : existingConsultorio.getConsultorioPiso())) {
+                    throw new UpdateException(
+                        "No se puede actualizar el consultorio. El consultorio " + 
+                        (consultoriosDTO.getNumero() != null ? consultoriosDTO.getNumero() : existingConsultorio.getConsultorioNumero()) +
+                        " ya existe en el piso " + 
+                        (consultoriosDTO.getPiso() != null ? consultoriosDTO.getPiso() : existingConsultorio.getConsultorioPiso()),
+                        "Consultorios");
+                }
+            }
+
+            if (consultoriosDTO.getNumero() != null) existingConsultorio.setConsultorioNumero(consultoriosDTO.getNumero());
+            if (consultoriosDTO.getPiso() != null) existingConsultorio.setConsultorioPiso(consultoriosDTO.getPiso());
+
+            this.consultoriosRepository.save(existingConsultorio);
+        } catch (UpdateException e) {
+            throw e;
         } catch (Exception exception) {
-            throw new UpdateException("Error al actualizar consultorio: " + exception.getMessage(), ConsultoriosEntity.class.getName());
+            throw new UpdateException("No se pudo actualizar el consultorio", "Consultorios");
         }
     }
 
@@ -81,19 +118,21 @@ public class ConsultoriosService {
         try {
             Optional<ConsultoriosEntity> optionalEntity = this.consultoriosRepository.findById(id);
             if (optionalEntity.isEmpty()) {
-                throw new DeleteException("Consultorio no encontrado", ConsultoriosEntity.class.getName());
+                throw new DeleteException("No existe un consultorio con el ID especificado", "Consultorios");
             }
 
             ConsultoriosEntity consultorio = optionalEntity.get();
             if (consultorio.getCitas() != null && !consultorio.getCitas().isEmpty()) {
-                throw new DeleteException("No se puede eliminar el consultorio porque tiene citas programadas", ConsultoriosEntity.class.getName());
+                throw new DeleteException(
+                    "No se puede eliminar el consultorio porque tiene citas pendientes. Primero debe cancelar las citas",
+                    "Consultorios");
             }
 
             this.consultoriosRepository.delete(consultorio);
         } catch (DeleteException de) {
             throw de;
         } catch (Exception exception) {
-            throw new DeleteException("Error eliminando consultorio: " + exception.getMessage(), ConsultoriosEntity.class.getName());
+            throw new DeleteException("No se pudo eliminar el consultorio", "Consultorios");
         }
     }
 }

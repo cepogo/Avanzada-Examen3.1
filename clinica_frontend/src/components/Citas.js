@@ -57,22 +57,49 @@ function Citas() {
 
   const generateTimeOptions = () => {
     const options = [];
-    let hour = 8;
-    let minutes = 0;
-
-    while (hour < 22 || (hour === 21 && minutes === 30)) {
-      const formattedHour = String(hour).padStart(2, '0');
-      const formattedMinutes = String(minutes).padStart(2, '0');
-      const time = `${formattedHour}:${formattedMinutes}`;
-      options.push(time);
+    const now = new Date();
+    const isToday = formData.fecha === format(now, 'yyyy-MM-dd');
+    
+    // Si es hoy, comenzar desde la hora actual
+    let startHour = 8;
+    let startMinutes = 0;
+    
+    if (isToday) {
+      startHour = now.getHours();
+      startMinutes = now.getMinutes();
       
-      minutes += 30;
-      if (minutes === 60) {
-        minutes = 0;
-        hour += 1;
+      // Ajustar al siguiente intervalo de 30 minutos
+      if (startMinutes > 30) {
+        startHour += 1;
+        startMinutes = 0;
+      } else if (startMinutes > 0) {
+        startMinutes = 30;
+      }
+      
+      // Si ya pasó la última hora disponible, no mostrar opciones
+      if (startHour >= 22 || (startHour === 21 && startMinutes > 30)) {
+        return [];
+      }
+      
+      // Asegurarse de no comenzar antes de las 8:00
+      if (startHour < 8) {
+        startHour = 8;
+        startMinutes = 0;
       }
     }
-
+    
+    // Generar las opciones de tiempo
+    for (let hour = startHour; hour < 22; hour++) {
+      for (let minutes = (hour === startHour ? startMinutes : 0); minutes < 60; minutes += 30) {
+        // No incluir 22:00
+        if (hour === 21 && minutes > 30) continue;
+        
+        const formattedHour = String(hour).padStart(2, '0');
+        const formattedMinutes = String(minutes).padStart(2, '0');
+        options.push(`${formattedHour}:${formattedMinutes}`);
+      }
+    }
+    
     return options;
   };
 
@@ -149,10 +176,31 @@ function Citas() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const newFormData = {
+        ...prev,
+        [name]: value,
+      };
+
+      // Si cambia la fecha, validar la hora seleccionada
+      if (name === 'fecha') {
+        const now = new Date();
+        const isToday = value === format(now, 'yyyy-MM-dd');
+        
+        if (isToday) {
+          // Obtener las horas disponibles para hoy
+          const availableHours = generateTimeOptions();
+          
+          // Si no hay horas disponibles o la hora actual no está en las opciones disponibles
+          if (availableHours.length === 0 || !availableHours.includes(prev.hora)) {
+            // Seleccionar la primera hora disponible o limpiar la selección
+            newFormData.hora = availableHours.length > 0 ? availableHours[0] : '';
+          }
+        }
+      }
+
+      return newFormData;
+    });
   };
 
   const showSnackbar = (message, severity = 'success') => {
@@ -186,13 +234,26 @@ function Citas() {
       }
 
       // Validar que la fecha no sea anterior a la fecha actual
-      const fechaCita = new Date(formData.fecha);
-      fechaCita.setHours(0, 0, 0, 0);
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const fechaCita = new Date(formData.fecha + 'T00:00:00');
 
-      if (fechaCita < hoy) {
+      if (fechaCita < now) {
         validationErrors.push('La fecha de la cita no puede ser anterior a la fecha actual');
+      }
+
+      // Si es el mismo día, validar la hora
+      if (format(fechaCita, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')) {
+        const [horaStr, minutosStr] = formData.hora.split(':');
+        const horaActual = new Date();
+        const horaCita = new Date();
+        horaCita.setHours(parseInt(horaStr, 10), parseInt(minutosStr, 10), 0, 0);
+
+        // Asegurar que haya al menos 30 minutos de diferencia
+        const diffMinutes = Math.floor((horaCita - horaActual) / (1000 * 60));
+        if (diffMinutes < 30) {
+          validationErrors.push('Debe haber al menos 30 minutos de diferencia entre la hora actual y la hora de la cita');
+        }
       }
 
       if (validationErrors.length > 0) {
@@ -206,6 +267,7 @@ function Citas() {
         paciente_id: Number(formData.paciente_id),
         medico_id: Number(formData.medico_id),
         consultorio_id: Number(formData.consultorio_id),
+        fecha: formData.fecha,
         fecha: formData.fecha, // Mantener la fecha en formato YYYY-MM-DD
         hora: formData.hora.length === 5 ? formData.hora + ':00' : formData.hora
       };
@@ -392,6 +454,7 @@ function Citas() {
               helperText="Solo se permiten citas desde la fecha actual en adelante"
               inputProps={{
                 min: format(new Date(), 'yyyy-MM-dd'),
+                max: format(addDays(new Date(), 365), 'yyyy-MM-dd')
               }}
             />
             <TextField
@@ -403,6 +466,11 @@ function Citas() {
               value={formData.hora}
               onChange={handleInputChange}
               required
+              helperText={
+                formData.fecha === format(new Date(), 'yyyy-MM-dd')
+                  ? "Solo se muestran los horarios disponibles para hoy"
+                  : "Horarios disponibles de 8:00 a 21:30"
+              }
             >
               {generateTimeOptions().map((time) => (
                 <MenuItem key={time} value={time}>

@@ -162,7 +162,8 @@ function Pacientes() {
       loadPacientes();
     } catch (error) {
       console.error('Error al guardar paciente:', error);
-      const errorMessage = error.response?.data || 'Error al guardar el paciente';
+      // Extraer el mensaje de error del backend
+      const errorMessage = error.response?.data?.message || error.response?.data || 'Error al guardar el paciente';
       showSnackbar(errorMessage, 'error');
     }
   };

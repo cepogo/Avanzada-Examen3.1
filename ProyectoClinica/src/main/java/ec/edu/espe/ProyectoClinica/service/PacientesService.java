@@ -54,14 +54,41 @@ public class PacientesService {
             }
             return pacientesDTOS;
         } catch (Exception exception) {
-            throw new DocumentNotFoundException("No se encontraron los pacientes", PacientesEntity.class.getName());
+            throw new DocumentNotFoundException("No hay pacientes registrados en el sistema", null);
         }
     }
 
     public void create(PacientesDTO pacientesDTO) throws InsertException {
         try {
+            // Validar campos requeridos
+            if (pacientesDTO.getNombre() == null || pacientesDTO.getNombre().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar el nombre del paciente", null);
+            }
+            if (pacientesDTO.getApellido() == null || pacientesDTO.getApellido().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar el apellido del paciente", null);
+            }
+            if (pacientesDTO.getEmail() == null || pacientesDTO.getEmail().trim().isEmpty()) {
+                throw new InsertException("Debe ingresar el correo electrónico del paciente", null);
+            }
             if (pacientesDTO.getFechaNacimiento() == null) {
-                throw new InsertException("La fecha de nacimiento es requerida", PacientesEntity.class.getName());
+                throw new InsertException("Debe ingresar la fecha de nacimiento del paciente", null);
+            }
+
+            // Validar duplicados de nombre y apellido
+            if (pacientesRepository.existsByPacienteNombreAndPacienteApellido(
+                    pacientesDTO.getNombre(), pacientesDTO.getApellido())) {
+                throw new InsertException(
+                    String.format("El paciente %s %s ya se encuentra registrado en el sistema", 
+                    pacientesDTO.getNombre(), pacientesDTO.getApellido()),
+                    null);
+            }
+
+            // Validar duplicados de email
+            if (pacientesRepository.existsByPacienteEmail(pacientesDTO.getEmail())) {
+                throw new InsertException(
+                    String.format("El correo electrónico %s ya se encuentra registrado en el sistema", 
+                    pacientesDTO.getEmail()),
+                    null);
             }
 
             // Validar que la fecha de nacimiento esté dentro del rango permitido
@@ -74,26 +101,55 @@ public class PacientesService {
 
             if (pacientesDTO.getFechaNacimiento().before(fechaMinima) || 
                 pacientesDTO.getFechaNacimiento().after(fechaMaxima)) {
-                throw new InsertException("La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual", 
-                    PacientesEntity.class.getName());
+                throw new InsertException(
+                    "La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual",
+                    null);
             }
 
             PacientesEntity entity = mapDTOToEntity(pacientesDTO);
             this.pacientesRepository.save(entity);
+        } catch (InsertException e) {
+            throw e;
         } catch (Exception exception) {
-            throw new InsertException("Error creando paciente: " + exception.getMessage(), PacientesEntity.class.getName());
+            throw new InsertException("Error en el sistema. No se pudo completar el registro del paciente", null);
         }
     }
 
     public void update(PacientesDTO pacientesDTO) throws UpdateException {
         try {
             if (pacientesDTO.getId() == null) {
-                throw new UpdateException("El ID del paciente es requerido", PacientesEntity.class.getName());
+                throw new UpdateException("Debe especificar el ID del paciente que desea actualizar", null);
             }
 
             Optional<PacientesEntity> optionalEntity = this.pacientesRepository.findById(pacientesDTO.getId());
             if (optionalEntity.isEmpty()) {
-                throw new UpdateException("Paciente no encontrado", PacientesEntity.class.getName());
+                throw new UpdateException("El paciente que intenta actualizar no existe en el sistema", null);
+            }
+
+            PacientesEntity existingPaciente = optionalEntity.get();
+
+            // Validar duplicados de nombre y apellido solo si son diferentes a los actuales
+            if ((pacientesDTO.getNombre() != null && !existingPaciente.getPacienteNombre().equals(pacientesDTO.getNombre())) ||
+                (pacientesDTO.getApellido() != null && !existingPaciente.getPacienteApellido().equals(pacientesDTO.getApellido()))) {
+                if (pacientesRepository.existsByPacienteNombreAndPacienteApellido(
+                        pacientesDTO.getNombre() != null ? pacientesDTO.getNombre() : existingPaciente.getPacienteNombre(),
+                        pacientesDTO.getApellido() != null ? pacientesDTO.getApellido() : existingPaciente.getPacienteApellido())) {
+                    throw new UpdateException(
+                        String.format("El paciente %s %s ya se encuentra registrado en el sistema",
+                        pacientesDTO.getNombre() != null ? pacientesDTO.getNombre() : existingPaciente.getPacienteNombre(),
+                        pacientesDTO.getApellido() != null ? pacientesDTO.getApellido() : existingPaciente.getPacienteApellido()),
+                        null);
+                }
+            }
+
+            // Validar duplicados de email solo si es diferente al actual
+            if (pacientesDTO.getEmail() != null && !existingPaciente.getPacienteEmail().equals(pacientesDTO.getEmail())) {
+                if (pacientesRepository.existsByPacienteEmail(pacientesDTO.getEmail())) {
+                    throw new UpdateException(
+                        String.format("El correo electrónico %s ya se encuentra registrado en el sistema",
+                        pacientesDTO.getEmail()),
+                        null);
+                }
             }
 
             // Validar que la fecha de nacimiento esté dentro del rango permitido si se está actualizando
@@ -107,20 +163,22 @@ public class PacientesService {
 
                 if (pacientesDTO.getFechaNacimiento().before(fechaMinima) || 
                     pacientesDTO.getFechaNacimiento().after(fechaMaxima)) {
-                    throw new UpdateException("La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual", 
-                        PacientesEntity.class.getName());
+                    throw new UpdateException(
+                        "La fecha de nacimiento debe ser desde el 1 de enero de 1995 hasta la fecha actual",
+                        null);
                 }
             }
 
-            PacientesEntity entity = optionalEntity.get();
-            if (pacientesDTO.getNombre() != null) entity.setPacienteNombre(pacientesDTO.getNombre());
-            if (pacientesDTO.getApellido() != null) entity.setPacienteApellido(pacientesDTO.getApellido());
-            if (pacientesDTO.getFechaNacimiento() != null) entity.setPacientefechaNacimiento(pacientesDTO.getFechaNacimiento());
-            if (pacientesDTO.getEmail() != null) entity.setPacienteEmail(pacientesDTO.getEmail());
+            if (pacientesDTO.getNombre() != null) existingPaciente.setPacienteNombre(pacientesDTO.getNombre());
+            if (pacientesDTO.getApellido() != null) existingPaciente.setPacienteApellido(pacientesDTO.getApellido());
+            if (pacientesDTO.getFechaNacimiento() != null) existingPaciente.setPacientefechaNacimiento(pacientesDTO.getFechaNacimiento());
+            if (pacientesDTO.getEmail() != null) existingPaciente.setPacienteEmail(pacientesDTO.getEmail());
 
-            this.pacientesRepository.save(entity);
+            this.pacientesRepository.save(existingPaciente);
+        } catch (UpdateException e) {
+            throw e;
         } catch (Exception exception) {
-            throw new UpdateException("Error actualizando paciente: " + exception.getMessage(), PacientesEntity.class.getName());
+            throw new UpdateException("Error en el sistema. No se pudo completar la actualización del paciente", null);
         }
     }
 
@@ -128,19 +186,21 @@ public class PacientesService {
         try {
             Optional<PacientesEntity> optionalEntity = this.pacientesRepository.findById(id);
             if (optionalEntity.isEmpty()) {
-                throw new DeleteException("Paciente no encontrado", PacientesEntity.class.getName());
+                throw new DeleteException("El paciente que intenta eliminar no existe en el sistema", null);
             }
 
             PacientesEntity paciente = optionalEntity.get();
             if (paciente.getCitas() != null && !paciente.getCitas().isEmpty()) {
-                throw new DeleteException("No se puede eliminar el paciente porque tiene citas programadas", PacientesEntity.class.getName());
+                throw new DeleteException(
+                    "No se puede eliminar el paciente porque tiene citas pendientes. Debe cancelar las citas primero",
+                    null);
             }
 
             this.pacientesRepository.delete(paciente);
         } catch (DeleteException de) {
             throw de;
         } catch (Exception exception) {
-            throw new DeleteException("No se puede eliminar el paciente porque tiene citas programadas", PacientesEntity.class.getName());
+            throw new DeleteException("Error en el sistema. No se pudo completar la eliminación del paciente", null);
         }
     }
 }
