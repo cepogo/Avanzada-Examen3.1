@@ -3,18 +3,16 @@ services:
     image: mysql:8.0
     container_name: mysql-clinica
     environment:
-      MYSQL_ROOT_PASSWORD: 
+      MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ProyectoClinica
-      MYSQL_USER: root
-      MYSQL_PASSWORD: 
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./Database/script.sql:/docker-entrypoint-initdb.d/script.sql
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,6 +24,7 @@ services:
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root
     ports:
       - "8081:80"
     depends_on:
@@ -42,11 +41,9 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ProyectoClinica?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: 
+      SPRING_DATASOURCE_PASSWORD: root
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
-    volumes:
-      - ./ProyectoClinica:/app
     depends_on:
       mysql:
         condition: service_healthy
