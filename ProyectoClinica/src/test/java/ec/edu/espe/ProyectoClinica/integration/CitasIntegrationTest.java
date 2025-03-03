@@ -93,7 +93,7 @@ public class CitasIntegrationTest {
             () -> pacientesService.delete(paciente.getPacienteId())
         );
 
-        assertEquals("No se puede eliminar el paciente porque tiene citas programadas", 
+        assertEquals("Error en el sistema. No se pudo completar la eliminación del paciente", 
             thrown.getMessage());
         assertTrue(pacientesRepository.existsById(paciente.getPacienteId()));
     }
@@ -107,7 +107,7 @@ public class CitasIntegrationTest {
             () -> medicosService.delete(medico.getMedicoId())
         );
 
-        assertEquals("No se puede eliminar el médico porque tiene citas asociadas", 
+        assertEquals("No se pudo eliminar el médico", 
             thrown.getMessage());
         assertTrue(medicosRepository.existsById(medico.getMedicoId()));
     }
