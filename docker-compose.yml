@@ -1,0 +1,73 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-clinica
+    environment:
+      MYSQL_ROOT_PASSWORD: 
+      MYSQL_DATABASE: ProyectoClinica
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./Database/script.sql:/docker-entrypoint-initdb.d/script.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-clinica
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  backend:
+    build: 
+      context: ./ProyectoClinica
+      dockerfile: Dockerfile
+    container_name: clinica-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ProyectoClinica?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+    volumes:
+      - ./ProyectoClinica:/app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: on-failure:3
+
+  frontend:
+    build:
+      context: ./clinica_frontend
+      dockerfile: Dockerfile
+    container_name: clinica-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    volumes:
+      - ./clinica_frontend/src:/app/src
+      - ./clinica_frontend/public:/app/public
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
+
+volumes:
+  mysql_data: 

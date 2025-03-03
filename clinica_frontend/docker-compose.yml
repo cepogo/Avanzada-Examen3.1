@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: .
+    container_name: clinica-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8082
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - clinica-network
+
+  backend:
+    extends:
+      file: ../ProyectoClinica/docker-compose.yml
+      service: backend
+    networks:
+      - clinica-network
+
+  mysql:
+    extends:
+      file: ../ProyectoClinica/docker-compose.yml
+      service: mysql
+    networks:
+      - clinica-network
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+    extends:
+      file: ../ProyectoClinica/docker-compose.yml
+      service: phpmyadmin
+    networks:
+      - clinica-network
+
+networks:
+  clinica-network:
+    driver: bridge
+
+volumes:
+  mysql_data: 
