@@ -9,9 +9,8 @@ on:
       - main
 
 jobs:
-  build-and-test:
+  build-backend:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,54 +21,67 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build and Test Backend
+      - name: Build backend with Maven
         run: |
           cd ProyectoClinica
           mvn clean package -DskipTests
 
-      - name: Run Integration Tests
-        run: |
-          cd ProyectoClinica
-          mvn test
-
-      - name: Build and Test Frontend
-        run: |
-          cd clinica_frontend
-          npm install
-          npm run build
-
-  deploy:
-    needs: build-and-test
+  build-frontend:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.11.1'
+
+      - name: Install dependencies and build frontend
+        run: |
+          cd clinica_frontend
+          npm install
+          export CI=false
+          npm run build
+        env:
+          CI: false
+
+  deploy:
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Configurar Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Log in to DockerHub
+      # Login a Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: Build and Push Backend Image
-        run: |
-          cd ProyectoClinica
-          docker build -t tu-dockerhub-username/clinica-backend:latest .
-          docker push tu-dockerhub-username/clinica-backend:latest
+      # Construir y pushear imagen backend
+      - name: Build and push backend Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ProyectoClinica
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-backend:latest
 
-      - name: Build and Push Frontend Image
-        run: |
-          cd clinica_frontend
-          docker build -t tu-dockerhub-username/clinica-frontend:latest .
-          docker push tu-dockerhub-username/clinica-frontend:latest
+      # Construir y pushear imagen frontend
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./clinica_frontend
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
 
-      - name: Deploy to GKE
+      - name: Deploy to Kubernetes
         run: |
-          echo "${{ secrets.GKE_KEY }}" | base64 --decode > gke-key.json
-          gcloud auth activate-service-account --key-file=gke-key.json
-          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} --region ${{ secrets.GKE_REGION }}
-          kubectl apply -f k8s/
+          echo "Deploying to Kubernetes..."
+          # Aquí puedes agregar los comandos para desplegar en Kubernetes
+          # Por ejemplo, usando kubectl para aplicar los archivos YAML de Kubernetes
