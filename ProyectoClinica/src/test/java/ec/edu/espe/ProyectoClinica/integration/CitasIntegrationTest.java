@@ -8,6 +8,7 @@ import ec.edu.espe.ProyectoClinica.exception.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -16,11 +17,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class CitasIntegrationTest {
+class CitasIntegrationTest {
 
     @Autowired
     private CitasService citasService;
+    @Autowired
+    private PacientesService pacientesService;
+    @Autowired
+    private MedicosService medicosService;
     @Autowired
     private CitasRepository citasRepository;
     @Autowired
@@ -29,113 +33,120 @@ public class CitasIntegrationTest {
     private MedicosRepository medicosRepository;
     @Autowired
     private ConsultoriosRepository consultoriosRepository;
-    @Autowired
-    private PacientesService pacientesService;
-    @Autowired
-    private MedicosService medicosService;
 
-    private PacientesEntity paciente;
-    private MedicosEntity medico;
-    private ConsultoriosEntity consultorio;
-    private Integer citaId;
+    private static PacientesEntity paciente;
+    private static MedicosEntity medico;
+    private static ConsultoriosEntity consultorio;
+    private static Integer citaId;
 
     @BeforeAll
-    public void setUp() {
-        // Crear datos de prueba básicos
+    static void setUp(@Autowired PacientesRepository pacientesRepo,
+                     @Autowired MedicosRepository medicosRepo,
+                     @Autowired ConsultoriosRepository consultoriosRepo) {
+        // Crear paciente de prueba
         paciente = new PacientesEntity();
-        paciente.setPacienteNombre("Test");
-        paciente.setPacienteApellido("Paciente");
-        paciente.setPacienteEmail("test@test.com");
+        paciente.setPacienteNombre("Diegosh");
+        paciente.setPacienteApellido("Cadenash");
+        paciente.setPacienteEmail("cadenash@gmail.com");
         paciente.setPacientefechaNacimiento(new Date());
-        paciente = pacientesRepository.save(paciente);
+        paciente = pacientesRepo.save(paciente);
 
+        // Crear médico de prueba
         medico = new MedicosEntity();
-        medico.setMedicoNombre("Test");
-        medico.setMedicoApellido("Medico");
-        medico.setMedicoEspecialidad("General");
-        medico = medicosRepository.save(medico);
+        medico.setMedicoNombre("Dr. Mata");
+        medico.setMedicoApellido("Sanos");
+        medico.setMedicoEspecialidad("Cardiología");
+        medico = medicosRepo.save(medico);
 
+        // Crear consultorio de prueba
         consultorio = new ConsultoriosEntity();
-        consultorio.setConsultorioNumero("101");
+        consultorio.setConsultorioNumero("512");
         consultorio.setConsultorioPiso(1);
-        consultorio = consultoriosRepository.save(consultorio);
+        consultorio = consultoriosRepo.save(consultorio);
     }
 
     @Test
     @Order(1)
-    @DisplayName("Test: Crear cita y verificar relaciones")
-    public void testCrearCitaConRelaciones() throws InsertException, DocumentNotFoundException {
-        CitaDTO citaDTO = new CitaDTO();
-        citaDTO.setPacienteId(paciente.getPacienteId());
-        citaDTO.setMedicoId(medico.getMedicoId());
-        citaDTO.setFecha(new Date());
-        citaDTO.setHora("10:00:00");
-        citaDTO.setConsultorioId(consultorio.getConsultorioId());
+    void deberiaCrearCitaCorrectamente() throws InsertException {
+        // Given
+        CitaDTO nuevaCita = new CitaDTO();
+        nuevaCita.setPacienteId(paciente.getPacienteId());
+        nuevaCita.setMedicoId(medico.getMedicoId());
+        nuevaCita.setConsultorioId(consultorio.getConsultorioId());
+        nuevaCita.setFecha(new Date());
+        nuevaCita.setHora("14:30:00");
 
-        citasService.create(citaDTO);
+        // When
+        citasService.create(nuevaCita);
         List<CitaDTO> citas = citasService.getAllCitas();
-        assertFalse(citas.isEmpty(), "La lista de citas no debería estar vacía");
-        
-        CitaDTO citaCreada = citas.get(0);
-        citaId = citaCreada.getId();
+        citaId = citas.get(0).getId();
 
-        assertNotNull(citaId, "La cita debe tener un ID válido");
-        assertEquals(paciente.getPacienteId(), citaCreada.getPacienteId());
-        assertEquals(medico.getMedicoId(), citaCreada.getMedicoId());
+        // Then
+        assertFalse(citas.isEmpty(), "Debería existir al menos una cita");
+        assertEquals(paciente.getPacienteId(), citas.get(0).getPacienteId(), "El ID del paciente debe coincidir");
+        assertEquals(medico.getMedicoId(), citas.get(0).getMedicoId(), "El ID del médico debe coincidir");
     }
 
     @Test
     @Order(2)
-    @DisplayName("Test: No se puede eliminar paciente con citas")
-    public void testEliminarPacienteConCitas() {
-        DeleteException thrown = assertThrows(
+    void noDeberiaPermitirEliminarPacienteConCita() {
+        // When & Then
+        DeleteException exception = assertThrows(
             DeleteException.class,
             () -> pacientesService.delete(paciente.getPacienteId())
         );
-
+        
+        assertTrue(pacientesRepository.existsById(paciente.getPacienteId()), 
+            "El paciente debería seguir existiendo");
         assertEquals("Error en el sistema. No se pudo completar la eliminación del paciente", 
-            thrown.getMessage());
-        assertTrue(pacientesRepository.existsById(paciente.getPacienteId()));
+            exception.getMessage());
     }
 
     @Test
     @Order(3)
-    @DisplayName("Test: No se puede eliminar médico con citas")
-    public void testEliminarMedicoConCitas() {
-        DeleteException thrown = assertThrows(
+    void noDeberiaPermitirEliminarMedicoConCita() {
+        // When & Then
+        DeleteException exception = assertThrows(
             DeleteException.class,
             () -> medicosService.delete(medico.getMedicoId())
         );
 
+        assertTrue(medicosRepository.existsById(medico.getMedicoId()), 
+            "El médico debería seguir existiendo");
         assertEquals("No se pudo eliminar el médico", 
-            thrown.getMessage());
-        assertTrue(medicosRepository.existsById(medico.getMedicoId()));
+            exception.getMessage());
     }
 
     @Test
     @Order(4)
-    @DisplayName("Test: Actualizar cita")
-    public void testActualizarCita() throws UpdateException {
-        CitaDTO citaDTO = new CitaDTO();
-        citaDTO.setId(citaId);
-        citaDTO.setPacienteId(paciente.getPacienteId());
-        citaDTO.setMedicoId(medico.getMedicoId());
-        citaDTO.setConsultorioId(consultorio.getConsultorioId());
-        citaDTO.setFecha(new Date());
-        citaDTO.setHora("11:00:00");
+    void deberiaActualizarCitaCorrectamente() throws UpdateException {
+        // Given
+        CitaDTO citaActualizada = new CitaDTO();
+        citaActualizada.setId(citaId);
+        citaActualizada.setPacienteId(paciente.getPacienteId());
+        citaActualizada.setMedicoId(medico.getMedicoId());
+        citaActualizada.setConsultorioId(consultorio.getConsultorioId());
+        citaActualizada.setFecha(new Date());
+        citaActualizada.setHora("15:00:00");
 
-        citasService.update(citaId, citaDTO);
-        CitasEntity citaActualizada = citasRepository.findById(citaId)
+        // When
+        citasService.update(citaId, citaActualizada);
+        CitasEntity citaModificada = citasRepository.findById(citaId)
             .orElseThrow(() -> new RuntimeException("Cita no encontrada"));
-        
-        assertEquals("11:00:00", citaActualizada.getCitaHora().toString());
+
+        // Then
+        assertEquals("15:00:00", citaModificada.getCitaHora().toString(), 
+            "La hora de la cita debería haberse actualizado");
     }
 
     @AfterAll
-    public void tearDown() {
-        citasRepository.deleteAll();
-        pacientesRepository.deleteAll();
-        medicosRepository.deleteAll();
-        consultoriosRepository.deleteAll();
+    static void limpiar(@Autowired CitasRepository citasRepo,
+                       @Autowired PacientesRepository pacientesRepo,
+                       @Autowired MedicosRepository medicosRepo,
+                       @Autowired ConsultoriosRepository consultoriosRepo) {
+        citasRepo.deleteAll();
+        pacientesRepo.deleteAll();
+        medicosRepo.deleteAll();
+        consultoriosRepo.deleteAll();
     }
 } 
