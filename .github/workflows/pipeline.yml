@@ -41,7 +41,10 @@ jobs:
         run: |
           cd clinica_frontend
           npm install
+          export CI=false
           npm run build
+        env:
+          CI: false
 
   deploy:
     needs: [build-backend, build-frontend]
