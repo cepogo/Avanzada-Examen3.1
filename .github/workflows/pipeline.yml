@@ -97,7 +97,7 @@ jobs:
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
 
   deploy:
-    needs: [build-backend, build-mysql]
+    needs: [build-backend, build-mysql, build-frontend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -107,6 +107,10 @@ jobs:
         
       - name: Deploy to Kubernetes
         run: |
+          # Limpiar recursos existentes
+          kubectl delete deployments,services,pvc --all || true
+          
+          # Aplicar configuraciones
           kubectl apply -f k8s/mysql-pvc.yaml
           kubectl apply -f k8s/mysql-deployment.yaml
           kubectl apply -f k8s/mysql-service.yaml
@@ -114,15 +118,47 @@ jobs:
           echo "Waiting for MySQL to be ready..."
           kubectl wait --for=condition=ready pod -l app=mysql --timeout=300s
           
+          # Verificar estado del pod MySQL
+          echo "Checking MySQL pod status..."
+          kubectl describe pod -l app=mysql
+          kubectl logs -l app=mysql
+          
           echo "Setting up MySQL database..."
           MYSQL_POD=$(kubectl get pod -l app=mysql -o jsonpath="{.items[0].metadata.name}")
-          kubectl cp Database/script.sql $MYSQL_POD:/tmp/
-          kubectl exec $MYSQL_POD -- mysql -h localhost -P 3306 -u root -proot < /tmp/script.sql
           
+          # Esperar a que MySQL esté realmente listo
+          echo "Waiting for MySQL to be fully initialized..."
+          sleep 30
+          
+          # Copiar y ejecutar script
+          echo "Copying database script..."
+          kubectl cp Database/script.sql $MYSQL_POD:/tmp/
+          
+          echo "Initializing database..."
+          kubectl exec $MYSQL_POD -- bash -c "mysql -h localhost -P 3306 -u root -proot < /tmp/script.sql"
+          
+          # Desplegar backend
           kubectl apply -f k8s/backend-deployment.yaml
           kubectl apply -f k8s/backend-service.yaml
           
           echo "Waiting for backend to be ready..."
           kubectl wait --for=condition=ready pod -l app=backend --timeout=300s
+          
+          # Desplegar frontend
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/frontend-service.yaml
+          
+          echo "Waiting for frontend to be ready..."
+          kubectl wait --for=condition=ready pod -l app=frontend --timeout=300s
+          
+          # Verificar estado final
+          echo "Final deployment status:"
+          kubectl get all
+          
+          echo "Pod logs:"
+          for pod in $(kubectl get pods -o name); do
+            echo "=== $pod logs ==="
+            kubectl logs $pod --tail=20
+          done
           
           echo "Deployment completed successfully"

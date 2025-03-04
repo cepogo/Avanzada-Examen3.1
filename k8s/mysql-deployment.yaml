@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: mysql
-        image: mysql:8.0
+        image: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-mysql:latest
+        imagePullPolicy: Always
         ports:
           - containerPort: 3306
         env:
@@ -26,10 +27,43 @@ spec:
             value: "root"
           - name: MYSQL_PASSWORD
             value: "root"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
         volumeMounts:
-          - name: mysql-data
+          - name: mysql-persistent-storage
             mountPath: /var/lib/mysql
+        livenessProbe:
+          exec:
+            command:
+              - mysqladmin
+              - ping
+              - -h
+              - localhost
+              - -u
+              - root
+              - -p${MYSQL_ROOT_PASSWORD}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+              - mysqladmin
+              - ping
+              - -h
+              - localhost
+              - -u
+              - root
+              - -p${MYSQL_ROOT_PASSWORD}
+          initialDelaySeconds: 5
+          periodSeconds: 2
+          timeoutSeconds: 1
       volumes:
-        - name: mysql-data
+        - name: mysql-persistent-storage
           persistentVolumeClaim:
             claimName: mysql-pvc
