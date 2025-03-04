@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: clinica-frontend
+  name: frontend
 spec:
   selector:
-    app: clinica-frontend
+    app: frontend
   ports:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-  type: LoadBalancer
+  type: NodePort
