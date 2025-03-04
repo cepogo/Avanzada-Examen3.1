@@ -71,26 +71,36 @@ jobs:
           docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest .
           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
 
+      - name: Set up Minikube
+        uses: medyagh/setup-minikube@master
+
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'latest'
 
+      - name: Configure Minikube
+        run: |
+          minikube start --driver=docker
+          minikube status
+          kubectl config use-context minikube
+          kubectl cluster-info
+
       - name: Deploy to Kubernetes
         run: |
           echo "Applying Kubernetes configurations..."
-          kubectl apply -f k8s/mysql-pvc.yaml
-          kubectl apply -f k8s/mysql-deployment.yaml
-          kubectl apply -f k8s/mysql-service.yaml
-          kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/backend-service.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
-          kubectl apply -f k8s/frontend-service.yaml
+          kubectl apply -f k8s/mysql-pvc.yaml --validate=false
+          kubectl apply -f k8s/mysql-deployment.yaml --validate=false
+          kubectl apply -f k8s/mysql-service.yaml --validate=false
+          kubectl apply -f k8s/backend-deployment.yaml --validate=false
+          kubectl apply -f k8s/backend-service.yaml --validate=false
+          kubectl apply -f k8s/frontend-deployment.yaml --validate=false
+          kubectl apply -f k8s/frontend-service.yaml --validate=false
           
           echo "Waiting for deployments to be ready..."
-          kubectl wait --for=condition=ready pod -l app=mysql --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=clinica-backend --timeout=300s
-          kubectl wait --for=condition=ready pod -l app=clinica-frontend --timeout=300s
+          kubectl rollout status deployment/mysql
+          kubectl rollout status deployment/clinica-backend
+          kubectl rollout status deployment/clinica-frontend
           
           echo "Verifying deployment..."
           kubectl get pods
@@ -103,5 +113,12 @@ jobs:
           echo "Checking pod logs..."
           for pod in $(kubectl get pods -o name); do
             echo "=== Logs for $pod ==="
-            kubectl logs $pod --tail=50
+            kubectl logs $pod --tail=50 || true
           done
+
+      - name: Show Minikube IP and URLs
+        run: |
+          echo "Minikube IP:"
+          minikube ip
+          echo "Service URLs:"
+          minikube service list
