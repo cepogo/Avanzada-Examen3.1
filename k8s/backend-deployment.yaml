@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: grupo4espe/clinica-backend:latest
+        image: clinica-backend:latest  # Asegúrate de que esta imagen esté disponible
         ports:
         - containerPort: 8080
         env:

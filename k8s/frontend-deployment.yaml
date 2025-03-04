@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: grupo4espe/clinica-frontend:latest
+        image: clinica-frontend:latest  # Asegúrate de que esta imagen esté disponible
         ports:
         - containerPort: 3000
         env:
