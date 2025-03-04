@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: clinica-frontend
-          image: tu-usuario-dockerhub/clinica-frontend:latest
+          image: grupo4espe/clinica-frontend:latest
           ports:
             - containerPort: 3000
           env:
