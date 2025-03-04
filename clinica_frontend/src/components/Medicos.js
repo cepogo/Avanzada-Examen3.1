@@ -45,7 +45,7 @@ function Medicos() {
 
   useEffect(() => {
     loadMedicos();
-  }, []);
+  }, [loadMedicos]);
 
   const handleOpen = (medico = null) => {
     if (medico) {

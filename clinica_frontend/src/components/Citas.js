@@ -143,7 +143,7 @@ function Citas() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleOpen = (cita = null) => {
     if (cita) {
@@ -268,7 +268,6 @@ function Citas() {
         medico_id: Number(formData.medico_id),
         consultorio_id: Number(formData.consultorio_id),
         fecha: formData.fecha,
-        fecha: formData.fecha, // Mantener la fecha en formato YYYY-MM-DD
         hora: formData.hora.length === 5 ? formData.hora + ':00' : formData.hora
       };
 

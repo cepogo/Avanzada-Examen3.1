@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { pacientesService } from '../services/api';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 
 const formatDisplayDate = (dateString) => {
   try {
@@ -65,7 +65,7 @@ function Pacientes() {
 
   useEffect(() => {
     loadPacientes();
-  }, []);
+  }, [loadPacientes]);
 
   const handleOpen = (paciente = null) => {
     if (paciente) {

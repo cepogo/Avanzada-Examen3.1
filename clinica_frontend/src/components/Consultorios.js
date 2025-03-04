@@ -47,7 +47,7 @@ function Consultorios() {
 
   useEffect(() => {
     loadConsultorios();
-  }, []);
+  }, [loadConsultorios]);
 
   const handleOpen = (consultorio = null) => {
     if (consultorio) {
