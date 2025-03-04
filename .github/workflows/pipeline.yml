@@ -80,8 +80,23 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
 
+      # Configurar kubectl
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      # Configurar el acceso al clúster de Kubernetes
+      - name: Configure Kubernetes access
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+
+      # Desplegar en Kubernetes
       - name: Deploy to Kubernetes
         run: |
           echo "Deploying to Kubernetes..."
-          # Aquí puedes agregar los comandos para desplegar en Kubernetes
-          # Por ejemplo, usando kubectl para aplicar los archivos YAML de Kubernetes
+          kubectl apply -f k8s/mysql-deployment.yaml
+          kubectl apply -f k8s/mysql-service.yaml
+          kubectl apply -f k8s/backend-deployment.yaml
+          kubectl apply -f k8s/backend-service.yaml
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/frontend-service.yaml

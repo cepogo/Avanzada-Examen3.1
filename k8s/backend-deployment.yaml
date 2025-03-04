@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: <tu-imagen-dockerhub-backend>
+        image: grupo4espe/clinica-backend:latest
         ports:
         - containerPort: 8080
         env:
