@@ -59,6 +59,12 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Build and push MySQL image
+        run: |
+          cd k8s
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-mysql:latest -f Dockerfile.mysql .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-mysql:latest
+
       - name: Build and push backend Docker image
         run: |
           cd ProyectoClinica
@@ -86,12 +92,31 @@ jobs:
           kubectl config use-context minikube
           kubectl cluster-info
 
+      - name: Clean up existing deployments
+        run: |
+          kubectl delete deployments --all || true
+          kubectl delete services --all || true
+          kubectl delete pvc --all || true
+          kubectl delete pv --all || true
+
       - name: Deploy to Kubernetes
         run: |
           echo "Applying Kubernetes configurations..."
+          # Reemplazar las imágenes en los archivos YAML
+          sed -i "s|grupo4espe/clinica-mysql.*|${{ secrets.DOCKER_HUB_USERNAME }}/clinica-mysql:latest|g" k8s/mysql-deployment.yaml
+          sed -i "s|grupo4espe/clinica-backend.*|${{ secrets.DOCKER_HUB_USERNAME }}/clinica-backend:latest|g" k8s/backend-deployment.yaml
+          sed -i "s|grupo4espe/clinica-frontend.*|${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest|g" k8s/frontend-deployment.yaml
+          
+          # Aplicar configuraciones
           kubectl apply -f k8s/mysql-pvc.yaml --validate=false
           kubectl apply -f k8s/mysql-deployment.yaml --validate=false
           kubectl apply -f k8s/mysql-service.yaml --validate=false
+          
+          # Esperar a que MySQL esté listo
+          echo "Waiting for MySQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=mysql --timeout=300s
+          
+          # Aplicar el resto de configuraciones
           kubectl apply -f k8s/backend-deployment.yaml --validate=false
           kubectl apply -f k8s/backend-service.yaml --validate=false
           kubectl apply -f k8s/frontend-deployment.yaml --validate=false
@@ -101,10 +126,35 @@ jobs:
           kubectl rollout status deployment/mysql
           kubectl rollout status deployment/backend
           kubectl rollout status deployment/frontend
+
+      - name: Initialize Database
+        run: |
+          echo "Waiting for MySQL to be fully ready..."
+          sleep 30
           
-          echo "Verifying deployment..."
-          kubectl get pods
-          kubectl get services
+          # Obtener el pod de MySQL
+          MYSQL_POD=$(kubectl get pod -l app=mysql -o jsonpath="{.items[0].metadata.name}")
+          
+          echo "Initializing database..."
+          # Ejecutar script SQL inicial
+          kubectl exec $MYSQL_POD -- mysql -u root -proot ProyectoClinica -e "
+          CREATE DATABASE IF NOT EXISTS ProyectoClinica;
+          USE ProyectoClinica;
+          
+          -- Asegurarse de que las tablas estén vacías
+          SET FOREIGN_KEY_CHECKS = 0;
+          TRUNCATE TABLE citas;
+          TRUNCATE TABLE consultorios;
+          TRUNCATE TABLE medicos;
+          TRUNCATE TABLE pacientes;
+          SET FOREIGN_KEY_CHECKS = 1;
+          
+          -- Crear índices únicos si no existen
+          ALTER TABLE pacientes ADD UNIQUE INDEX idx_email (paciente_email);
+          ALTER TABLE pacientes ADD UNIQUE INDEX idx_nombre_apellido (paciente_nombre, paciente_apellido);
+          ALTER TABLE medicos ADD UNIQUE INDEX idx_nombre_apellido (medico_nombre, medico_apellido);
+          ALTER TABLE consultorios ADD UNIQUE INDEX idx_piso_numero (consultorio_piso, consultorio_numero);
+          "
 
       - name: Verify Deployment
         run: |
@@ -116,9 +166,16 @@ jobs:
             kubectl logs $pod --tail=50 || true
           done
 
-      - name: Show Minikube IP and URLs
+      - name: Show Service URLs
         run: |
-          echo "Minikube IP:"
-          minikube ip
           echo "Service URLs:"
           minikube service list
+          
+          echo "Frontend URL:"
+          minikube service frontend --url
+          
+          echo "Backend URL:"
+          minikube service backend --url
+
+          echo "all: "
+          minikube service --all

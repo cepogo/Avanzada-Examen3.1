@@ -3,10 +3,11 @@ kind: Service
 metadata:
   name: frontend
 spec:
+  type: NodePort  # Asegúrate de que sea NodePort o LoadBalancer
   selector:
     app: frontend
   ports:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-  type: NodePort
+      nodePort: 31503  # Puerto externo
