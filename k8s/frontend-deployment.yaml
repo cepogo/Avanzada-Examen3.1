@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: clinica-frontend:latest  # Asegúrate de que esta imagen esté disponible
+        image: poguis/clinica-frontend:latest
         ports:
         - containerPort: 3000
         env:

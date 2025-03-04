@@ -99,8 +99,8 @@ jobs:
           
           echo "Waiting for deployments to be ready..."
           kubectl rollout status deployment/mysql
-          kubectl rollout status deployment/clinica-backend
-          kubectl rollout status deployment/clinica-frontend
+          kubectl rollout status deployment/backend
+          kubectl rollout status deployment/frontend
           
           echo "Verifying deployment..."
           kubectl get pods

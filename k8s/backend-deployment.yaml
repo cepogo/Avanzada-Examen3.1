@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: clinica-backend:latest  # Asegúrate de que esta imagen esté disponible
+        image: poguis/clinica-backend:latest
         ports:
         - containerPort: 8080
         env:
