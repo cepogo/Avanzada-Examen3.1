@@ -67,7 +67,7 @@ class CitasIntegrationTest {
 
     @Test
     @Order(1)
-    void deberiaCrearCitaCorrectamente() throws InsertException {
+    void deberiaCrearCitaCorrectamente() throws InsertException, DocumentNotFoundException {
         // Given
         CitaDTO nuevaCita = new CitaDTO();
         nuevaCita.setPacienteId(paciente.getPacienteId());
