@@ -59,6 +59,11 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
+      - name: Copy Database Script
+        run: |
+          cp Database/script.sql k8s/init.sql
+          cat k8s/init.sql
+
       - name: Build and push MySQL image
         run: |
           cd k8s
@@ -135,26 +140,14 @@ jobs:
           # Obtener el pod de MySQL
           MYSQL_POD=$(kubectl get pod -l app=mysql -o jsonpath="{.items[0].metadata.name}")
           
+          echo "Copying SQL script to pod..."
+          kubectl cp Database/script.sql $MYSQL_POD:/tmp/script.sql
+          
           echo "Initializing database..."
-          # Ejecutar script SQL inicial
-          kubectl exec $MYSQL_POD -- mysql -u root -proot ProyectoClinica -e "
-          CREATE DATABASE IF NOT EXISTS ProyectoClinica;
-          USE ProyectoClinica;
+          kubectl exec $MYSQL_POD -- /bin/bash -c "mysql -u root -proot < /tmp/script.sql"
           
-          -- Asegurarse de que las tablas estén vacías
-          SET FOREIGN_KEY_CHECKS = 0;
-          TRUNCATE TABLE citas;
-          TRUNCATE TABLE consultorios;
-          TRUNCATE TABLE medicos;
-          TRUNCATE TABLE pacientes;
-          SET FOREIGN_KEY_CHECKS = 1;
-          
-          -- Crear índices únicos si no existen
-          ALTER TABLE pacientes ADD UNIQUE INDEX idx_email (paciente_email);
-          ALTER TABLE pacientes ADD UNIQUE INDEX idx_nombre_apellido (paciente_nombre, paciente_apellido);
-          ALTER TABLE medicos ADD UNIQUE INDEX idx_nombre_apellido (medico_nombre, medico_apellido);
-          ALTER TABLE consultorios ADD UNIQUE INDEX idx_piso_numero (consultorio_piso, consultorio_numero);
-          "
+          echo "Verifying database..."
+          kubectl exec $MYSQL_POD -- mysql -u root -proot -e "SHOW DATABASES; USE proyectoclinica; SHOW TABLES;"
 
       - name: Verify Deployment
         run: |
@@ -176,6 +169,3 @@ jobs:
           
           echo "Backend URL:"
           minikube service backend --url
-
-          echo "all: "
-          minikube service --all
