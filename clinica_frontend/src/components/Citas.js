@@ -178,8 +178,8 @@ function Citas() {
     const { name, value } = e.target;
     setFormData((prev) => {
       const newFormData = {
-        ...prev,
-        [name]: value,
+      ...prev,
+      [name]: value,
       };
 
       // Si cambia la fecha, validar la hora seleccionada

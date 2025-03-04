@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clinica-frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: clinica-frontend
+  template:
+    metadata:
+      labels:
+        app: clinica-frontend
+    spec:
+      containers:
+        - name: clinica-frontend
+          image: tu-usuario-dockerhub/clinica-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REACT_APP_API_URL
+              value: "http://clinica-backend:8080"
