@@ -144,10 +144,49 @@ jobs:
           kubectl cp Database/script.sql $MYSQL_POD:/tmp/script.sql
           
           echo "Initializing database..."
-          kubectl exec $MYSQL_POD -- /bin/bash -c "mysql -u root -proot < /tmp/script.sql"
+          kubectl exec $MYSQL_POD -- /bin/bash -c "mysql -h localhost -P 3306 -u root -proot < /tmp/script.sql"
           
           echo "Verifying database..."
-          kubectl exec $MYSQL_POD -- mysql -u root -proot -e "SHOW DATABASES; USE proyectoclinica; SHOW TABLES;"
+          kubectl exec $MYSQL_POD -- mysql -h localhost -P 3306 -u root -proot -e "
+          SHOW DATABASES;
+          CREATE DATABASE IF NOT EXISTS proyectoclinica;
+          USE proyectoclinica;
+          
+          CREATE TABLE IF NOT EXISTS Pacientes (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(100) NOT NULL,
+              apellido VARCHAR(100) NOT NULL,
+              fecha_nacimiento DATE NOT NULL,
+              email VARCHAR(255) UNIQUE NOT NULL
+          );
+          
+          CREATE TABLE IF NOT EXISTS Medicos (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              nombre VARCHAR(100) NOT NULL,
+              apellido VARCHAR(100) NOT NULL,
+              especialidad VARCHAR(100) NOT NULL
+          );
+          
+          CREATE TABLE IF NOT EXISTS Consultorios (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              numero VARCHAR(10) NOT NULL UNIQUE,
+              piso INT NOT NULL
+          );
+          
+          CREATE TABLE IF NOT EXISTS Citas (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              paciente_id INT NOT NULL,
+              medico_id INT NOT NULL,
+              fecha DATE NOT NULL,
+              hora TIME NOT NULL,
+              consultorio_id INT NOT NULL,
+              FOREIGN KEY (paciente_id) REFERENCES Pacientes(id) ON DELETE CASCADE,
+              FOREIGN KEY (medico_id) REFERENCES Medicos(id) ON DELETE CASCADE,
+              FOREIGN KEY (consultorio_id) REFERENCES Consultorios(id) ON DELETE CASCADE
+          );
+          
+          SHOW TABLES;
+          "
 
       - name: Verify Deployment
         run: |
