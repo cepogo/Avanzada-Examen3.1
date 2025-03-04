@@ -80,15 +80,17 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
 
-      # Configurar kubectl
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+      # Configurar un clúster temporal con kind
+      - name: Set up Kubernetes cluster with kind
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: test-cluster
 
-      # Configurar el acceso al clúster de Kubernetes
-      - name: Configure Kubernetes access
+      # Cargar las imágenes de Docker en el clúster de kind
+      - name: Load Docker images into kind cluster
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          kind load docker-image ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-backend:latest --name test-cluster
+          kind load docker-image ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest --name test-cluster
 
       # Desplegar en Kubernetes
       - name: Deploy to Kubernetes
@@ -100,3 +102,10 @@ jobs:
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/frontend-service.yaml
+
+      # Verificar el estado del despliegue
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          kubectl get pods
+          kubectl get services
