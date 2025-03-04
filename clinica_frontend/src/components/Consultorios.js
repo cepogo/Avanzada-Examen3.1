@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -32,7 +32,7 @@ function Consultorios() {
     piso: '',
   });
 
-  const loadConsultorios = async () => {
+  const loadConsultorios = useCallback(async () => {
     try {
       const response = await consultoriosService.getAll();
       setConsultorios(Array.isArray(response.data) ? response.data : []);
@@ -43,7 +43,7 @@ function Consultorios() {
       showSnackbar(errorMessage, 'error');
       setConsultorios([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadConsultorios();

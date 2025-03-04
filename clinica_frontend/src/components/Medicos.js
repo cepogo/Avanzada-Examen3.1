@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -33,7 +33,7 @@ function Medicos() {
     especialidad: '',
   });
 
-  const loadMedicos = async () => {
+  const loadMedicos = useCallback(async () => {
     try {
       const response = await medicosService.getAll();
       setMedicos(response.data || []);
@@ -41,7 +41,7 @@ function Medicos() {
       console.error('Error al cargar médicos:', error);
       showSnackbar('Error al cargar los médicos', 'error');
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadMedicos();

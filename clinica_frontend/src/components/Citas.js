@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -103,7 +103,7 @@ function Citas() {
     return options;
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [citasRes, pacientesRes, medicosRes, consultoriosRes] = await Promise.all([
         citasService.getAll(),
@@ -139,7 +139,7 @@ function Citas() {
       setMedicos([]);
       setConsultorios([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();

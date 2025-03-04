@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -47,7 +47,7 @@ function Pacientes() {
     email: '',
   });
 
-  const loadPacientes = async () => {
+  const loadPacientes = useCallback(async () => {
     try {
       const response = await pacientesService.getAll();
       console.log('Pacientes cargados (raw):', response.data);
@@ -61,7 +61,7 @@ function Pacientes() {
       console.error('Error al cargar pacientes:', error);
       showSnackbar('Error al cargar los pacientes', 'error');
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadPacientes();
