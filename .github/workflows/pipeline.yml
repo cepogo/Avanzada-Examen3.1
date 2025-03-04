@@ -53,46 +53,55 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Configurar Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Construir la imagen del backend
-      - name: Build backend Docker image
-        run: |
-          docker build -t clinica-backend:latest ./ProyectoClinica
-
-      # Construir la imagen del frontend
-      - name: Build frontend Docker image
-        run: |
-          docker build -t clinica-frontend:latest ./clinica_frontend
-
-      # Configurar un clúster temporal con kind
-      - name: Set up Kubernetes cluster with kind
-        uses: helm/kind-action@v1
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          cluster_name: test-cluster
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      # Cargar las imágenes de Docker en el clúster de kind
-      - name: Load Docker images into kind cluster
+      - name: Build and push backend Docker image
         run: |
-          kind load docker-image clinica-backend:latest --name test-cluster
-          kind load docker-image clinica-frontend:latest --name test-cluster
+          cd ProyectoClinica
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-backend:latest .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-backend:latest
 
-      # Desplegar en Kubernetes
+      - name: Build and push frontend Docker image
+        run: |
+          cd clinica_frontend
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
       - name: Deploy to Kubernetes
         run: |
-          echo "Deploying to Kubernetes..."
+          echo "Applying Kubernetes configurations..."
+          kubectl apply -f k8s/mysql-pvc.yaml
           kubectl apply -f k8s/mysql-deployment.yaml
           kubectl apply -f k8s/mysql-service.yaml
           kubectl apply -f k8s/backend-deployment.yaml
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/frontend-deployment.yaml
           kubectl apply -f k8s/frontend-service.yaml
-
-      # Verificar el estado del despliegue
-      - name: Verify deployment
-        run: |
+          
+          echo "Waiting for deployments to be ready..."
+          kubectl wait --for=condition=ready pod -l app=mysql --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=clinica-backend --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=clinica-frontend --timeout=300s
+          
           echo "Verifying deployment..."
           kubectl get pods
           kubectl get services
+
+      - name: Verify Deployment
+        run: |
+          echo "Verifying all resources..."
+          kubectl get all
+          echo "Checking pod logs..."
+          for pod in $(kubectl get pods -o name); do
+            echo "=== Logs for $pod ==="
+            kubectl logs $pod --tail=50
+          done
