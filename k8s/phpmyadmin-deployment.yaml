@@ -13,14 +13,21 @@ spec:
         app: phpmyadmin
     spec:
       containers:
-        - name: phpmyadmin
-          image: phpmyadmin/phpmyadmin
-          ports:
-            - containerPort: 80
-          env:
-            - name: PMA_HOST
-              value: "mysql"  # Nombre del servicio de MySQL
-            - name: PMA_PORT
-              value: "3306"
-            - name: MYSQL_ROOT_PASSWORD
-              value: "root"
+      - name: phpmyadmin
+        image: phpmyadmin/phpmyadmin
+        ports:
+          - containerPort: 80
+        env:
+          - name: PMA_HOST
+            value: "mysql"
+          - name: PMA_PORT
+            value: "3306"
+          - name: MYSQL_ROOT_PASSWORD
+            value: "root"
+        resources:
+          requests:
+            memory: "256Mi"  # Memoria mínima que el contenedor solicita
+            cpu: "250m"       # CPU mínima que el contenedor solicita (250 milicores)
+          limits:
+            memory: "512Mi"   # Límite máximo de memoria que el contenedor puede usar
+            cpu: "500m"       # Límite máximo de CPU que el contenedor puede usar (500 milicores)
