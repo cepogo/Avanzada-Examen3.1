@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mysql-test:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: proyectoclinica
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test:
+    build:
+      context: ./ProyectoClinica
+      dockerfile: Dockerfile.test
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=test
+    volumes:
+      - ./ProyectoClinica:/app
+      - ~/.m2:/root/.m2 

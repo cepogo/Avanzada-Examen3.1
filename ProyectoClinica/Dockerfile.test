@@ -1,0 +1,14 @@
+FROM maven:3.9.6-eclipse-temurin-21-jammy
+
+WORKDIR /app
+
+# Copiar archivos del proyecto
+COPY pom.xml .
+COPY src ./src
+
+# Copiar script de espera para MySQL
+COPY wait-for-mysql.sh ./wait-for-mysql.sh
+RUN chmod +x wait-for-mysql.sh
+
+# Comando por defecto para ejecutar las pruebas
+CMD ["./wait-for-mysql.sh", "mysql-test", "mvn", "test", "-Dtest=CitasAgendamientoTest,CitasIntegrationTest"] 
