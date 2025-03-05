@@ -50,6 +50,8 @@ jobs:
         with:
           node-version: '20.11.1'
 
+          
+
       - name: Install dependencies and build frontend
         run: |
           cd clinica_frontend
