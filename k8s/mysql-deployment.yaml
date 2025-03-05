@@ -14,8 +14,7 @@ spec:
     spec:
       containers:
       - name: mysql
-        image: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-mysql:latest
-        imagePullPolicy: Always
+        image: mysql:8.0
         ports:
           - containerPort: 3306
         env:
@@ -46,7 +45,7 @@ spec:
               - localhost
               - -u
               - root
-              - -p${MYSQL_ROOT_PASSWORD}
+              - -proot
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
@@ -59,7 +58,7 @@ spec:
               - localhost
               - -u
               - root
-              - -p${MYSQL_ROOT_PASSWORD}
+              - -proot
           initialDelaySeconds: 5
           periodSeconds: 2
           timeoutSeconds: 1
