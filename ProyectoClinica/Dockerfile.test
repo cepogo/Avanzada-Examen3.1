@@ -1,14 +1,17 @@
 FROM maven:3.9.6-eclipse-temurin-21-jammy
 
+# Instalar cliente MySQL
+RUN apt-get update && apt-get install -y default-mysql-client
+
 WORKDIR /app
 
 # Copiar archivos del proyecto
 COPY pom.xml .
 COPY src ./src
 
-# Copiar script de espera para MySQL
-COPY wait-for-mysql.sh ./wait-for-mysql.sh
-RUN chmod +x wait-for-mysql.sh
+# Descargar wait-for-it script
+ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
 
-# Comando por defecto para ejecutar las pruebas
-CMD ["./wait-for-mysql.sh", "mysql-test", "mvn", "test", "-Dtest=CitasAgendamientoTest,CitasIntegrationTest"] 
+# Comando para ejecutar las pruebas
+CMD ["/wait-for-it.sh", "mysql-test:3306", "--timeout=300", "--strict", "--", "mvn", "test", "-Dtest=CitasAgendamientoTest,CitasIntegrationTest"] 
