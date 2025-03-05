@@ -9,6 +9,16 @@ on:
 jobs:
   build-backend:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: proyectoclinica
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     steps:
       - uses: actions/checkout@v3
       
@@ -18,6 +28,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+
+      - name: Initialize MySQL
+        run: |
+          mysql -h127.0.0.1 -P3306 -uroot -proot < Database/script.sql
           
       - name: Build backend with Maven
         run: |
@@ -40,33 +54,10 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-backend:latest
 
-  build-mysql:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-          
-      - name: Build and push MySQL image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./Database
-          file: ./Database/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-mysql:latest
-
   build-frontend:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -83,7 +74,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Log in to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
@@ -97,7 +88,7 @@ jobs:
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/clinica-frontend:latest
 
   deploy:
-    needs: [build-backend, build-mysql, build-frontend]
+    needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -107,35 +98,8 @@ jobs:
         
       - name: Deploy to Kubernetes
         run: |
-          # Limpiar recursos existentes
-          kubectl delete deployments,services,pvc --all || true
-          
-          # Aplicar configuraciones
-          kubectl apply -f k8s/mysql-pvc.yaml
-          kubectl apply -f k8s/mysql-deployment.yaml
-          kubectl apply -f k8s/mysql-service.yaml
-          
-          echo "Waiting for MySQL to be ready..."
-          kubectl wait --for=condition=ready pod -l app=mysql --timeout=300s
-          
-          # Verificar estado del pod MySQL
-          echo "Checking MySQL pod status..."
-          kubectl describe pod -l app=mysql
-          kubectl logs -l app=mysql
-          
-          echo "Setting up MySQL database..."
-          MYSQL_POD=$(kubectl get pod -l app=mysql -o jsonpath="{.items[0].metadata.name}")
-          
-          # Esperar a que MySQL esté realmente listo
-          echo "Waiting for MySQL to be fully initialized..."
-          sleep 30
-          
-          # Copiar y ejecutar script
-          echo "Copying database script..."
-          kubectl cp Database/script.sql $MYSQL_POD:/tmp/
-          
-          echo "Initializing database..."
-          kubectl exec $MYSQL_POD -- bash -c "mysql -h localhost -P 3306 -u root -proot < /tmp/script.sql"
+          # Limpiar deployments y servicios existentes
+          kubectl delete deployments,services --all || true
           
           # Desplegar backend
           kubectl apply -f k8s/backend-deployment.yaml
@@ -160,5 +124,8 @@ jobs:
             echo "=== $pod logs ==="
             kubectl logs $pod --tail=20
           done
+          
+          echo "Service URLs:"
+          minikube service list
           
           echo "Deployment completed successfully"
