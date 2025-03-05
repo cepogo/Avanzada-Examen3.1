@@ -15,11 +15,12 @@ spec:
       containers:
       - name: backend
         image: grupo4espe/clinica-backend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:
         - name: SPRING_DATASOURCE_URL
-          value: jdbc:mysql://mysql:3306/ProyectoClinica?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+          value: jdbc:mysql://host.minikube.internal:3306/proyectoclinica?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
         - name: SPRING_DATASOURCE_USERNAME
           value: root
         - name: SPRING_DATASOURCE_PASSWORD

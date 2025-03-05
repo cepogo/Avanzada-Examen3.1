@@ -9,16 +9,6 @@ on:
 jobs:
   build-backend:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: proyectoclinica
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
     steps:
       - uses: actions/checkout@v3
       
@@ -28,10 +18,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-
-      - name: Initialize MySQL
-        run: |
-          mysql -h127.0.0.1 -P3306 -uroot -proot < Database/script.sql
           
       - name: Build backend with Maven
         run: |
@@ -119,12 +105,13 @@ jobs:
           echo "Final deployment status:"
           kubectl get all
           
+          # Mostrar logs de los pods
           echo "Pod logs:"
-          for pod in $(kubectl get pods -o name); do
-            echo "=== $pod logs ==="
-            kubectl logs $pod --tail=20
-          done
+          kubectl logs -l app=backend --tail=50
+          echo "---"
+          kubectl logs -l app=frontend --tail=50
           
+          # Mostrar URLs de los servicios
           echo "Service URLs:"
           minikube service list
           
