@@ -9,3 +9,4 @@ Este proyecto es un sistema de citas médicas que incluye:
 1. Clona el repositorio.
 2. Configura la base de datos con `database/script.sql`.
 3. Despliega en Kubernetes usando los archivos en `k8s/`.
+4. Hola
